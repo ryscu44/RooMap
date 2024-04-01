@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import MapView, { PROVIDER_GOOGLE } from "react-native-maps";
 import { Marker } from "react-native-maps";
+import Geolocation from "react-native-geolocation-service";
 
 import {
   StyleSheet,
@@ -17,11 +18,20 @@ import Dropdown from "@/components/Dropdown";
 import { Markers } from "@/components/Markers";
 
 export default function App() {
+  let userCoords = {
+    latitude: 0.0001,
+    longitude: 0.0001,
+    latitudeDelta: 0.01,
+    longitudeDelta: 0.01,
+  };
+
   const [modalVisible, setModalVisible] = useState(false);
   const [alive, setAlive] = useState("null");
   const [pouch, setPouch] = useState("null");
   const [sex, setSex] = useState("null");
   const [joey, setJoey] = useState("null");
+  const [joeyAlive, setJoeyAlive] = useState("null");
+  const [userPos, setUserPos] = useState(userCoords);
 
   const aliveCheck = [
     { label: "Alive", value: "Alive" },
@@ -37,8 +47,19 @@ export default function App() {
     { label: "No", value: "No" },
   ];
   const joeyCheck = [
-    { label: "Pinkie (0-6 months)", value: "Pinkie (0-6 months)" },
-    { label: "Velvet (6-12 months)", value: "Velvet (6-12 months)" },
+    { label: "Jellybean (0-1 months)", value: "Jellybean (0-1 months)" },
+    { label: "Pinkie (1-6 months)", value: "Pinkie (0-6 months)" },
+    { label: "Velvet (6-9 months)", value: "Velvet (6-9 months)" },
+    { label: "Furred (9-12 months)", value: "Furred (9-12 months)" },
+    { label: "At foot (12+ months)", value: "At foot (12+ months)" },
+  ];
+  const joeyAliveCheck = [
+    { label: "Euthanised (unviable)", value: "Euthanised (unviable)" },
+    {
+      label: "Euthanised (due to injury)",
+      value: "Euthanised (due to injury)",
+    },
+    { label: "In rehabilitation ", value: "In rehabilitation" },
   ];
 
   const handleAliveValueChange = (alive: string) => {
@@ -57,6 +78,10 @@ export default function App() {
     setJoey(joey);
     console.log(joey);
   };
+  const handleJoeyAliveValueChange = (joeyAlive: string) => {
+    setJoeyAlive(joeyAlive);
+    console.log(joeyAlive);
+  };
 
   return (
     <View style={styles.container}>
@@ -73,7 +98,7 @@ export default function App() {
         onPress={() => setModalVisible(true)}
       >
         <View>
-          <Text style={styles.textStyle}>Add to map</Text>
+          <Text style={styles.addToMapStyle}>Add to map</Text>
         </View>
       </Pressable>
       <Modal
@@ -89,41 +114,56 @@ export default function App() {
           <View style={styles.centeredView}>
             <View style={styles.modalView}>
               <Text style={styles.modalText}>Please select below</Text>
-              <Text style={styles.dropdownText}>Status:</Text>
-              <Dropdown
-                style={pickerSelectStyles}
-                items={aliveCheck}
-                onValueChange={handleAliveValueChange}
-              />
-              <Text style={styles.dropdownText}>Sex:</Text>
-
-              <Dropdown
-                style={pickerSelectStyles}
-                items={sexCheck}
-                onValueChange={handleSexValueChange}
-              />
-              {sex === "Female" ? (
-                <>
-                  <Text style={styles.dropdownText}>Pouch checked:</Text>
+              <ScrollView style={{ maxHeight: 300, width: "100%" }}>
+                <View>
+                  <Text style={styles.dropdownText}>Status:</Text>
                   <Dropdown
                     style={pickerSelectStyles}
-                    items={pouchCheck}
-                    onValueChange={handlePouchValueChange}
+                    items={aliveCheck}
+                    onValueChange={handleAliveValueChange}
                   />
-                </>
-              ) : null}
+                  <Text style={styles.dropdownText}>Sex:</Text>
+                  <Dropdown
+                    style={pickerSelectStyles}
+                    items={sexCheck}
+                    onValueChange={handleSexValueChange}
+                  />
+                  {sex === "Female" ? (
+                    <>
+                      <Text style={styles.dropdownText}>Pouch checked:</Text>
+                      <Dropdown
+                        style={pickerSelectStyles}
+                        items={pouchCheck}
+                        onValueChange={handlePouchValueChange}
+                      />
+                    </>
+                  ) : null}
 
-              {pouch === "Yes, with joey" ? (
-                <>
+                  {pouch === "Yes, with joey" ? (
+                    <>
+                      <Text style={styles.dropdownText}>Joey age:</Text>
+                      <Dropdown
+                        style={pickerSelectStyles}
+                        items={joeyCheck}
+                        onValueChange={handleJoeyValueChange}
+                      />
+                    </>
+                  ) : null}
                   <Text style={styles.dropdownText}>Joey status:</Text>
+
                   <Dropdown
                     style={pickerSelectStyles}
-                    items={joeyCheck}
-                    onValueChange={handleJoeyValueChange}
+                    items={joeyAliveCheck}
+                    onValueChange={handleJoeyAliveValueChange}
                   />
-                </>
-              ) : null}
-
+                </View>
+                <Text style={styles.dropdownText}>Additional notes:</Text>
+                <TextInput
+                  style={pickerSelectStyles.inputIOS}
+                  placeholder="Additional notes"
+                  keyboardType="text"
+                />
+              </ScrollView>
               <Pressable
                 style={[styles.button, styles.buttonClose]}
                 onPress={() => setModalVisible(!modalVisible)}
@@ -172,7 +212,7 @@ const styles = StyleSheet.create({
   },
   map: {
     width: "100%",
-    height: "80%",
+    height: "100%",
   },
   centeredView: {
     flex: 1,
@@ -257,14 +297,20 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   submitButton: {
-    display: "flex",
+    position: "absolute",
+    top: 700,
+    left: 130,
+    alignContent: "center",
     borderRadius: 20,
-    padding: 10,
+    padding: 9,
     elevation: 2,
-    width: 120,
-    height: 40,
-    justifyContent: "center",
-    alignItems: "center",
-    marginHorizontal: "auto",
+    width: 150,
+    height: 50,
+  },
+  addToMapStyle: {
+    fontSize: 22,
+    color: "white",
+    fontWeight: "bold",
+    textAlign: "center",
   },
 });

@@ -1,0 +1,3 @@
+// add auth with fullname/number
+// center on coords for android
+// export coords to Markers
