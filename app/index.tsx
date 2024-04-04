@@ -1,7 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import MapView, { PROVIDER_GOOGLE } from "react-native-maps";
 import { Marker } from "react-native-maps";
 import Geolocation from "react-native-geolocation-service";
+import * as Location from "expo-location";
+import { LocationObject } from "expo-location";
+import DetailsModal from "@/components/DetailsModal";
+import { MongoClient } from "mongodb";
 
 import {
   StyleSheet,
@@ -15,7 +19,18 @@ import {
   ScrollView,
 } from "react-native";
 import Dropdown from "@/components/Dropdown";
-import { Markers } from "@/components/Markers";
+
+interface Marker {
+  latitude: number;
+  longitude: number;
+}
+
+const initialMarkers = [
+  {
+    latitude: -37.753,
+    longitude: 145.0516,
+  },
+];
 
 export default function App() {
   let userCoords = {
@@ -25,7 +40,25 @@ export default function App() {
     longitudeDelta: 0.01,
   };
 
+  useEffect(() => {
+    const getPermissions = async () => {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        console.log("Please grant location permissions");
+        return;
+      }
+      let currentLocation = await Location.getCurrentPositionAsync({});
+      setLocation(currentLocation);
+      console.log("Location");
+      console.log(currentLocation);
+    };
+    getPermissions();
+  }, []);
+
+  const [markers, setMarkers] = useState<Marker[]>(initialMarkers);
+  const [location, setLocation] = useState<LocationObject>();
   const [modalVisible, setModalVisible] = useState(false);
+  const [detailsModalVisible, setDetailsModalVisible] = useState(false);
   const [alive, setAlive] = useState("null");
   const [pouch, setPouch] = useState("null");
   const [sex, setSex] = useState("null");
@@ -83,15 +116,38 @@ export default function App() {
     console.log(joeyAlive);
   };
 
+  const handleSubmit = () => {
+    if (location) {
+      const newMarker: Marker = {
+        latitude: location?.coords.latitude,
+        longitude: location?.coords.longitude,
+      };
+      setMarkers([...markers, newMarker]);
+      setModalVisible(false);
+    } else {
+      Alert.alert("Location is not available.");
+    }
+  };
+
   return (
     <View style={styles.container}>
       <MapView
+        showsCompass
         style={styles.map}
         provider={PROVIDER_GOOGLE}
         showsUserLocation
         showsMyLocationButton
       >
-        <Marker coordinate={Markers} />
+        {markers.map((marker, index) => (
+          <Marker
+            key={index}
+            coordinate={{
+              latitude: marker.latitude,
+              longitude: marker.longitude,
+            }}
+            onPress={(e) => setDetailsModalVisible(true)}
+          />
+        ))}
       </MapView>
       <Pressable
         style={[styles.submitButton, styles.buttonClose]}
@@ -104,6 +160,27 @@ export default function App() {
       <Modal
         animationType="slide"
         transparent={true}
+        visible={detailsModalVisible}
+        onRequestClose={() => {
+          Alert.alert("Modal has been closed.");
+          setDetailsModalVisible(!detailsModalVisible);
+        }}
+      >
+        <View style={styles.centeredView}>
+          <View style={styles.modalView}>
+            <Text style={styles.modalText}>Details Hello World!</Text>
+            <Pressable
+              style={[styles.button, styles.buttonClose]}
+              onPress={() => setDetailsModalVisible(!detailsModalVisible)}
+            >
+              <Text style={styles.textStyle}>Hide Modal</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+      <Modal
+        animationType="slide"
+        transparent={true}
         visible={modalVisible}
         onRequestClose={() => {
           Alert.alert("Modal has been closed.");
@@ -113,6 +190,10 @@ export default function App() {
         <ScrollView contentContainerStyle={styles.modalScrollView}>
           <View style={styles.centeredView}>
             <View style={styles.modalView}>
+              <Text>
+                Latitude: {location?.coords.latitude}
+                Longitude: {location?.coords.longitude}
+              </Text>
               <Text style={styles.modalText}>Please select below</Text>
               <ScrollView style={{ maxHeight: 300, width: "100%" }}>
                 <View>
@@ -161,12 +242,11 @@ export default function App() {
                 <TextInput
                   style={pickerSelectStyles.inputIOS}
                   placeholder="Additional notes"
-                  keyboardType="text"
                 />
               </ScrollView>
               <Pressable
                 style={[styles.button, styles.buttonClose]}
-                onPress={() => setModalVisible(!modalVisible)}
+                onPress={handleSubmit}
               >
                 <Text style={styles.textStyle}>Submit</Text>
               </Pressable>
