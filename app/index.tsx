@@ -1,12 +1,9 @@
 import React, { useState, useEffect } from "react";
 import MapView, { PROVIDER_GOOGLE } from "react-native-maps";
 import { Marker } from "react-native-maps";
-import Geolocation from "react-native-geolocation-service";
 import * as Location from "expo-location";
 import { LocationObject } from "expo-location";
-import DetailsModal from "@/components/DetailsModal";
-import { MongoClient } from "mongodb";
-
+import axios from "axios";
 import {
   StyleSheet,
   Text,
@@ -41,6 +38,13 @@ export default function App() {
   };
 
   useEffect(() => {
+    axios
+      .get("http://10.0.2.2:5000/getItems")
+      .then((markers) => setMarkers(markers.data))
+      .catch((error) => console.log(error));
+  }, []);
+
+  useEffect(() => {
     const getPermissions = async () => {
       let { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") {
@@ -55,7 +59,7 @@ export default function App() {
     getPermissions();
   }, []);
 
-  const [markers, setMarkers] = useState<Marker[]>(initialMarkers);
+  const [markers, setMarkers] = useState<Marker[]>([]);
   const [location, setLocation] = useState<LocationObject>();
   const [modalVisible, setModalVisible] = useState(false);
   const [detailsModalVisible, setDetailsModalVisible] = useState(false);
@@ -116,14 +120,42 @@ export default function App() {
     console.log(joeyAlive);
   };
 
-  const handleSubmit = () => {
+  // const handleSubmit = async () => {
+  //   if (location) {
+  //     const newMarker: Marker = {
+  //       latitude: location?.coords.latitude,
+  //       longitude: location?.coords.longitude,
+  //     };
+  //     setMarkers([...markers, newMarker]);
+  //     setModalVisible(false);
+  //   } else {
+  //     Alert.alert("Location is not available.");
+  //   }
+  // };
+
+  const handleSubmit = async () => {
     if (location) {
-      const newMarker: Marker = {
-        latitude: location?.coords.latitude,
-        longitude: location?.coords.longitude,
-      };
-      setMarkers([...markers, newMarker]);
-      setModalVisible(false);
+      try {
+        await axios.post("http://10.0.2.2:5000/addMarker", {
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+          alive: alive,
+          pouch: pouch,
+          sex: sex,
+          joey: joey,
+          joeyAlive: joeyAlive,
+          userPos: userPos,
+        });
+        const newMarker: Marker = {
+          latitude: location?.coords.latitude,
+          longitude: location?.coords.longitude,
+        };
+        setMarkers([...markers, newMarker]);
+        setModalVisible(false);
+      } catch (error) {
+        console.error("Error adding marker:", error);
+        Alert.alert("Error adding marker");
+      }
     } else {
       Alert.alert("Location is not available.");
     }
